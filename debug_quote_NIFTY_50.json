@@ -1,0 +1,3 @@
+{
+  "NSE_INDEX:Nifty 50": "{'average_price': None,\n 'depth': {'buy': [], 'sell': []},\n 'instrument_token': 'NSE_INDEX|Nifty 50',\n 'last_price': 25722.1,\n 'last_trade_time': '1761906600000',\n 'lower_circuit_limit': None,\n 'net_change': -155.75,\n 'ohlc': {'close': 25722.1, 'high': 25953.75, 'low': 25711.2, 'open': 25863.8},\n 'oi': None,\n 'oi_day_high': None,\n 'oi_day_low': None,\n 'symbol': 'NA',\n 'timestamp': '2025-11-03T03:25:52.596+05:30',\n 'total_buy_quantity': None,\n 'total_sell_quantity': None,\n 'upper_circuit_limit': None,\n 'volume': None}"
+}

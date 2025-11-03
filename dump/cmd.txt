@@ -1,0 +1,5 @@
+python -m pip install --upgrade pip setuptools wheel
+# required for bcrypt backend used by passlib
+pip install --upgrade "passlib[bcrypt]" bcrypt
+# (optional) if you want Argon2 instead, use:
+# pip install --upgrade passlib argon2-cffi
