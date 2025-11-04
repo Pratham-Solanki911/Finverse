@@ -125,7 +125,7 @@ export default function Dashboard() {
         <main style={{ marginTop: 18 }}>
 
           {/* Enhanced Control Panel */}
-          <div className="panel relative overflow-hidden" style={{
+          <div className="panel relative overflow-visible" style={{
             marginBottom: 20,
             display: 'flex',
             flexWrap: 'wrap',
