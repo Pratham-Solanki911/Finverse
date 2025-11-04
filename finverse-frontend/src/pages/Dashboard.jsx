@@ -126,22 +126,24 @@ export default function Dashboard() {
 
           {/* Enhanced Control Panel */}
           <div className="panel relative overflow-visible" style={{
-            marginBottom: 20,
+            marginBottom: 32,
+            padding: '28px 32px',
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '10px',
+            gap: '20px',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)'
+            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)',
+            minHeight: '100px'
           }}>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-            <div style={{ flex: '1 1 400px', minWidth: '300px' }}>
+            <div style={{ flex: '1 1 500px', minWidth: '350px' }}>
               <SymbolSearch onSymbolSelect={handleSymbolSelect} />
             </div>
 
             <button
               className="btn-primary"
-              style={{ padding: '10px 16px', flexShrink: 0 }}
+              style={{ padding: '14px 24px', flexShrink: 0, fontSize: '15px', fontWeight: 600 }}
               onClick={() => setIsNewsOpen(true)}
             >
               AI News Feed

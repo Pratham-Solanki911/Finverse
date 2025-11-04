@@ -91,14 +91,15 @@ a{color:inherit}
 
 .search-input {
   width: 100%;
-  padding: 12px 14px;
-  border-radius: 10px;
+  padding: 16px 18px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   background: rgba(10, 20, 30, 0.6);
   color: white;
-  font-size: 14px;
+  font-size: 15px;
   transition: all 0.3s ease;
   backdrop-filter: blur(8px);
+  font-weight: 500;
 }
 .search-input:focus {
   outline: none;
@@ -112,7 +113,8 @@ a{color:inherit}
 
 .search-input::placeholder {
   color: rgba(255, 255, 255, 0.4);
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 400;
 }
 
 .search-loading {
@@ -184,15 +186,15 @@ a{color:inherit}
 }
 
 .search-results li {
-  padding: 12px 14px;
-  border-radius: 8px;
+  padding: 16px 18px;
+  border-radius: 10px;
   cursor: pointer;
   display: flex;
   justify-content: space-between;
   align-items: center;
   transition: all 0.2s ease;
   border: 1px solid transparent;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .search-results li:last-child {
@@ -202,24 +204,24 @@ a{color:inherit}
 .search-results li:hover {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(16, 185, 129, 0.05));
   border-color: rgba(16, 185, 129, 0.3);
-  transform: translateX(4px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+  transform: translateX(6px);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.2);
 }
 
 .search-result-symbol {
   font-weight: 700;
-  font-size: 14px;
+  font-size: 15px;
   color: #fff;
   letter-spacing: 0.3px;
 }
 
 .search-result-name {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 200px;
+  max-width: 250px;
   transition: color 0.2s;
 }
 
