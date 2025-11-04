@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchParams] = useSearchParams();
   const isDevMode = searchParams.get("dev") === "true";
 
@@ -126,19 +127,28 @@ export default function Dashboard() {
 
           {/* Enhanced Control Panel */}
           <div className="panel relative overflow-visible" style={{
-            marginBottom: 32,
-            padding: '28px 32px',
+            marginBottom: isDropdownOpen ? 380 : 32,
+            padding: isDropdownOpen ? '32px 36px' : '28px 32px',
             display: 'flex',
             flexWrap: 'wrap',
             gap: '20px',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)',
-            minHeight: '100px'
+            background: isDropdownOpen
+              ? 'linear-gradient(135deg, rgba(79, 70, 229, 0.08) 0%, rgba(99, 102, 241, 0.04) 100%)'
+              : 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)',
+            minHeight: '100px',
+            transition: 'all 0.3s ease',
+            boxShadow: isDropdownOpen
+              ? '0 8px 32px rgba(16, 185, 129, 0.1), 0 0 0 1px rgba(16, 185, 129, 0.1)'
+              : '0 4px 12px rgba(0, 0, 0, 0.1)'
           }}>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
             <div style={{ flex: '1 1 500px', minWidth: '350px' }}>
-              <SymbolSearch onSymbolSelect={handleSymbolSelect} />
+              <SymbolSearch
+                onSymbolSelect={handleSymbolSelect}
+                onDropdownStateChange={setIsDropdownOpen}
+              />
             </div>
 
             <button

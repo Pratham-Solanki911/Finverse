@@ -2,13 +2,20 @@
 import React, { useState, useEffect, useRef } from 'react';
 import useDebounce from '../hooks/useDebounce';
 
-export default function SymbolSearch({ onSymbolSelect }) {
+export default function SymbolSearch({ onSymbolSelect, onDropdownStateChange }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const debouncedQuery = useDebounce(query, 300); // 300ms delay
   const wrapperRef = useRef(null);
+
+  // Notify parent when dropdown state changes
+  useEffect(() => {
+    if (onDropdownStateChange) {
+      onDropdownStateChange(isOpen);
+    }
+  }, [isOpen, onDropdownStateChange]);
 
   useEffect(() => {
     // Hide results when clicking outside
