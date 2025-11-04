@@ -119,6 +119,7 @@ export default function Dashboard() {
               </button>
             </div>
           </div>
+          <div className="small">Mode: <strong style={{ color: "#10b981" }}>Live (WebSocket)</strong></div>
         </header>
 
         <main style={{ marginTop: 18 }}>

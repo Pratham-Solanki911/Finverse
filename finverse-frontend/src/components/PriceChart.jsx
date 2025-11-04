@@ -65,14 +65,14 @@ const PriceChart = forwardRef(function PriceChart({
           // Line chart styles
           tension: 0.15,
           borderWidth: 2,
-          borderColor: 'rgb(75, 192, 192)',
-          backgroundColor: 'rgba(75, 192, 192, 0.1)',
+          borderColor: 'rgb(16, 185, 129)',
+          backgroundColor: 'rgba(16, 185, 129, 0.1)',
           pointRadius: 0,
           pointHoverRadius: 4,
           fill: chartType === 'line', // Only fill for line charts
           // --- NEW: Candlestick styles ---
           color: {
-            up: '#27ae60', // Green for up
+            up: '#10b981', // Green for up
             down: '#ff6161', // Red for down
             unchanged: '#cbd5e1', // Gray for unchanged
           }
@@ -103,11 +103,11 @@ const PriceChart = forwardRef(function PriceChart({
                 year: 'yyyy'
               }
             },
-            ticks: { 
+            ticks: {
               maxRotation: 0,
               autoSkip: true,
               maxTicksLimit: 10,
-              color: '#98a0b3' // Muted ticks
+              color: '#9ca3af' // Muted ticks
             },
             grid: {
               display: true,
@@ -115,10 +115,10 @@ const PriceChart = forwardRef(function PriceChart({
             }
           },
           y: {
-            title: { display: true, text: "Price (INR)", color: '#98a0b3' },
+            title: { display: true, text: "Price (INR)", color: '#9ca3af' },
             beginAtZero: false,
             ticks: {
-              color: '#98a0b3' // Muted ticks
+              color: '#9ca3af' // Muted ticks
             },
             grid: {
               display: true,
