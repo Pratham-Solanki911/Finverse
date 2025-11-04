@@ -34,10 +34,10 @@ export default function KPITiles({ quote }) {
 
   // Determine change color
   const changeNum = Number(net_change);
-  const changeClass = !isNaN(changeNum) && changeNum > 0 
-    ? { color: "#27ae60" } 
-    : !isNaN(changeNum) && changeNum < 0 
-    ? { color: "#ff6161" } 
+  const changeClass = !isNaN(changeNum) && changeNum > 0
+    ? { color: "#10b981" }
+    : !isNaN(changeNum) && changeNum < 0
+    ? { color: "#ff6161" }
     : { color: "#cbd5e1" };
 
   return (
