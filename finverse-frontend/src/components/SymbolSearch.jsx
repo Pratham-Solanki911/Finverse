@@ -50,7 +50,7 @@ export default function SymbolSearch({ onSymbolSelect }) {
   const handleSelect = (symbol) => {
     setQuery(symbol); // Set input text to the selected symbol
     setIsOpen(false);
-    setResults([]);
+    // Don't clear results so they can be shown again on refocus
     onSymbolSelect(symbol); // Pass the selected symbol up to the Dashboard
   };
 
@@ -60,7 +60,11 @@ export default function SymbolSearch({ onSymbolSelect }) {
         type="text"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        onFocus={() => query.length > 1 && setIsOpen(true)}
+        onFocus={() => {
+          if (query.length >= 2 && results.length > 0) {
+            setIsOpen(true);
+          }
+        }}
         placeholder="Search for a symbol (e.g., RELIANCE)..."
         className="search-input"
       />
