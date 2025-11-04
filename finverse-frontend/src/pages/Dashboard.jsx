@@ -60,7 +60,7 @@ export default function Dashboard() {
               <div className="subtitle">AI-powered trading companion</div>
             </div>
           </div>
-          <div className="small">Mode: <strong style={{ color: "#66ff99" }}>Live (WebSocket)</strong></div>
+          <div className="small">Mode: <strong style={{ color: "#10b981" }}>Live (WebSocket)</strong></div>
         </header>
 
         <main style={{ marginTop: 18 }}>
