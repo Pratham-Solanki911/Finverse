@@ -1,15 +1,16 @@
 // src/pages/Dashboard.jsx
 import React, { useState } from "react";
 import { useSearchParams } from "react-router-dom";
-// import useNewsFeed from "../hooks/useNewsFeed.js"; // REMOVED: This logic moves to the panel
 import logoSrc from "../assets/logo.png";
-import SymbolSearch from "../components/SymbolSearch.jsx";
+import AddSymbolModal from "../components/AddSymbolModal.jsx";
+import PaperTrading from "../components/PaperTrading.jsx";
+import ExpenseManager from "../components/ExpenseManager.jsx";
 import DevStatusPanel from "../components/DevStatusPanel.jsx";
 import SlidingNewsPanel from "../components/SlidingNewsPanel.jsx";
 import ChartWidget from "../components/ChartWidget.jsx";
 import ChartCart from "../components/ChartCart.jsx";
 import CanvasBackground from "../components/CanvasBackground.jsx";
-import { MessageSquare, LayoutDashboard } from 'lucide-react';
+import { MessageSquare, LayoutDashboard, Plus, Wallet, ShoppingCart } from 'lucide-react';
 import ChatPanel from "../components/ChatPanel.jsx";
 
 export default function Dashboard() {
@@ -19,10 +20,18 @@ export default function Dashboard() {
   const [isNewsOpen, setIsNewsOpen] = useState(false);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isAddSymbolOpen, setIsAddSymbolOpen] = useState(false);
+  const [isPaperTradingOpen, setIsPaperTradingOpen] = useState(false);
+  const [isExpenseManagerOpen, setIsExpenseManagerOpen] = useState(false);
+  const [selectedSymbolForTrade, setSelectedSymbolForTrade] = useState(null);
+
+  // Paper Trading State
+  const [trades, setTrades] = useState([]);
+  const [portfolio, setPortfolio] = useState({});
+  const [balance, setBalance] = useState(100000); // Starting balance: ₹1,00,000
+
   const [searchParams] = useSearchParams();
   const isDevMode = searchParams.get("dev") === "true";
-
-  // --- NEWS LOGIC IS REMOVED FROM HERE ---
 
   const handleSymbolSelect = (symbol) => {
     if (charts.length < 8) {
@@ -36,6 +45,64 @@ export default function Dashboard() {
     } else {
       console.warn("Max charts reached");
     }
+  };
+
+  const handleTrade = (trade) => {
+    setTrades(prev => [...prev, trade]);
+
+    // Update portfolio and balance
+    if (trade.type === 'buy') {
+      const cost = trade.quantity * trade.price;
+      if (cost > balance) {
+        alert("Insufficient balance!");
+        return;
+      }
+
+      setBalance(prev => prev - cost);
+
+      setPortfolio(prev => {
+        const existing = prev[trade.symbol] || { quantity: 0, avgPrice: 0 };
+        const totalQuantity = existing.quantity + trade.quantity;
+        const totalCost = (existing.quantity * existing.avgPrice) + cost;
+
+        return {
+          ...prev,
+          [trade.symbol]: {
+            quantity: totalQuantity,
+            avgPrice: totalCost / totalQuantity
+          }
+        };
+      });
+    } else if (trade.type === 'sell') {
+      const holding = portfolio[trade.symbol];
+      if (!holding || holding.quantity < trade.quantity) {
+        alert("Insufficient shares to sell!");
+        return;
+      }
+
+      const revenue = trade.quantity * trade.price;
+      setBalance(prev => prev + revenue);
+
+      setPortfolio(prev => {
+        const newQuantity = holding.quantity - trade.quantity;
+        if (newQuantity === 0) {
+          const { [trade.symbol]: removed, ...rest } = prev;
+          return rest;
+        }
+        return {
+          ...prev,
+          [trade.symbol]: {
+            ...holding,
+            quantity: newQuantity
+          }
+        };
+      });
+    }
+  };
+
+  const openPaperTrading = (symbol, price) => {
+    setSelectedSymbolForTrade({ symbol, price });
+    setIsPaperTradingOpen(true);
   };
 
   const handleRemoveChart = (id) => {
@@ -126,22 +193,48 @@ export default function Dashboard() {
 
           {/* Enhanced Control Panel */}
           <div className="panel relative overflow-visible" style={{
-            marginBottom: 20,
+            marginBottom: 32,
+            padding: '28px 32px',
             display: 'flex',
             flexWrap: 'wrap',
-            gap: '10px',
+            gap: '16px',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)'
+            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)',
+            minHeight: '100px',
+            transition: 'all 0.3s ease'
           }}>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-            <div style={{ flex: '1 1 400px', minWidth: '300px' }}>
-              <SymbolSearch onSymbolSelect={handleSymbolSelect} />
+
+            <div className="flex items-center gap-3 flex-wrap">
+              <button
+                className="btn-add-symbol"
+                onClick={() => setIsAddSymbolOpen(true)}
+              >
+                <Plus size={20} />
+                Add Symbol
+              </button>
+
+              <button
+                className="btn-paper-trading"
+                onClick={() => setIsPaperTradingOpen(true)}
+              >
+                <ShoppingCart size={20} />
+                Paper Trade
+              </button>
+
+              <button
+                className="btn-expense-manager"
+                onClick={() => setIsExpenseManagerOpen(true)}
+              >
+                <Wallet size={20} />
+                Portfolio
+              </button>
             </div>
 
             <button
               className="btn-primary"
-              style={{ padding: '10px 16px', flexShrink: 0 }}
+              style={{ padding: '14px 24px', flexShrink: 0, fontSize: '15px', fontWeight: 600 }}
               onClick={() => setIsNewsOpen(true)}
             >
               AI News Feed
@@ -213,6 +306,31 @@ export default function Dashboard() {
       <ChatPanel
         isOpen={isChatOpen}
         onClose={() => setIsChatOpen(false)}
+      />
+
+      {/* Add Symbol Modal */}
+      <AddSymbolModal
+        isOpen={isAddSymbolOpen}
+        onClose={() => setIsAddSymbolOpen(false)}
+        onSymbolSelect={handleSymbolSelect}
+      />
+
+      {/* Paper Trading Modal */}
+      <PaperTrading
+        isOpen={isPaperTradingOpen}
+        onClose={() => setIsPaperTradingOpen(false)}
+        symbol={selectedSymbolForTrade?.symbol || ""}
+        currentPrice={selectedSymbolForTrade?.price || 0}
+        onTrade={handleTrade}
+      />
+
+      {/* Expense Manager Modal */}
+      <ExpenseManager
+        isOpen={isExpenseManagerOpen}
+        onClose={() => setIsExpenseManagerOpen(false)}
+        trades={trades}
+        portfolio={portfolio}
+        balance={balance}
       />
       </div>
     </>
