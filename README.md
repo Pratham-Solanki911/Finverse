@@ -119,3 +119,4 @@ This project is licensed under the **MIT License**.
 
 > Copyright (c) 2025 Pratham.
 > FinVerse is an independent educational project and is **not affiliated** with NSE, BSE, or any financial institution.
+"# Finverse" 

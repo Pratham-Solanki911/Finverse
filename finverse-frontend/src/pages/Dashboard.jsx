@@ -1,339 +1,426 @@
-// src/pages/Dashboard.jsx
-import React, { useState } from "react";
-import { useSearchParams } from "react-router-dom";
-import logoSrc from "../assets/logo.png";
-import AddSymbolModal from "../components/AddSymbolModal.jsx";
-import PaperTrading from "../components/PaperTrading.jsx";
-import ExpenseManager from "../components/ExpenseManager.jsx";
-import DevStatusPanel from "../components/DevStatusPanel.jsx";
-import SlidingNewsPanel from "../components/SlidingNewsPanel.jsx";
-import ChartWidget from "../components/ChartWidget.jsx";
-import ChartCart from "../components/ChartCart.jsx";
-import CanvasBackground from "../components/CanvasBackground.jsx";
-import { MessageSquare, LayoutDashboard, Plus, Wallet, ShoppingCart } from 'lucide-react';
-import ChatPanel from "../components/ChatPanel.jsx";
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, TrendingUp, Newspaper, BrainCircuit, Activity, BarChart3, MessageSquare, ShoppingCart, Wallet, PieChart, Plus, Briefcase } from 'lucide-react';
+import SymbolSearch from '../components/SymbolSearch';
+import PriceChart from '../components/PriceChart';
+import NewsPanel from '../components/NewsPanel';
+import SentimentAnalysis from '../components/SentimentAnalysis';
+import ChatPanel from '../components/ChatPanel';
+import PortfolioSection from '../components/PortfolioSection';
+import FundsWidget from '../components/FundsWidget';
 
-export default function Dashboard() {
-  const [charts, setCharts] = useState([
-    { id: '1', symbol: "NIFTY 50", type: "line", hidden: false }
-  ]);
-  const [isNewsOpen, setIsNewsOpen] = useState(false);
-  const [isChatOpen, setIsChatOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
-  const [isAddSymbolOpen, setIsAddSymbolOpen] = useState(false);
-  const [isPaperTradingOpen, setIsPaperTradingOpen] = useState(false);
-  const [isExpenseManagerOpen, setIsExpenseManagerOpen] = useState(false);
-  const [selectedSymbolForTrade, setSelectedSymbolForTrade] = useState(null);
+// GitHub Feature Components
+import CanvasBackground from '../components/CanvasBackground';
+import AddSymbolModal from '../components/AddSymbolModal';
+import PaperTrading from '../components/PaperTrading';
+import ExpenseManager from '../components/ExpenseManager';
+import ChartCart from '../components/ChartCart';
 
-  // Paper Trading State
-  const [trades, setTrades] = useState([]);
-  const [portfolio, setPortfolio] = useState({});
-  const [balance, setBalance] = useState(100000); // Starting balance: ₹1,00,000
-
-  const [searchParams] = useSearchParams();
-  const isDevMode = searchParams.get("dev") === "true";
-
-  const handleSymbolSelect = (symbol) => {
-    if (charts.length < 8) {
-      const newChart = {
-        id: Date.now().toString(),
-        symbol: symbol.toUpperCase(),
-        type: "line",
-        hidden: false
-      };
-      setCharts(prev => [...prev, newChart]);
-    } else {
-      console.warn("Max charts reached");
+const Dashboard = () => {
+  const [charts, setCharts] = useState(() => {
+    try {
+      const saved = localStorage.getItem('finverse_charts');
+      return saved ? JSON.parse(saved) : [{
+        symbol: 'NIFTY 50',
+        name: 'NIFTY 50 Index',
+        instrument_key: 'NSE_INDEX|Nifty 50',
+        visible: true
+      }];
+    } catch (e) {
+      console.error("Error parsing charts from localStorage", e);
+      return [{
+        symbol: 'NIFTY 50',
+        name: 'NIFTY 50 Index',
+        instrument_key: 'NSE_INDEX|Nifty 50',
+        visible: true
+      }];
     }
-  };
+  });
+  
+  const [activeChartId, setActiveChartId] = useState(charts[0]?.instrument_key);
+  const selectedInstrument = charts.find(c => c.instrument_key === activeChartId) || charts[0];
 
-  const handleTrade = (trade) => {
-    setTrades(prev => [...prev, trade]);
+  // --- Paper Trading State ---
+  const [paperBalance, setPaperBalance] = useState(() => {
+    try {
+      const saved = localStorage.getItem('finverse_balance');
+      return saved ? parseFloat(saved) : 1000000;
+    } catch (e) {
+      return 1000000;
+    }
+  });
+  
+  const [paperTrades, setPaperTrades] = useState(() => {
+    try {
+      const saved = localStorage.getItem('finverse_trades');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
 
-    // Update portfolio and balance
-    if (trade.type === 'buy') {
-      const cost = trade.quantity * trade.price;
-      if (cost > balance) {
-        alert("Insufficient balance!");
-        return;
+  const [paperPortfolio, setPaperPortfolio] = useState(() => {
+    try {
+      const saved = localStorage.getItem('finverse_portfolio');
+      return saved ? JSON.parse(saved) : {};
+    } catch (e) {
+      return {};
+    }
+  });
+
+  // --- UI State ---
+  const [activeView, setActiveView] = useState('market'); // 'market' or 'portfolio'
+  const [isModalOpen, setIsModalOpen] = useState({
+    search: false,
+    trading: false,
+    expense: false,
+    cart: false
+  });
+
+  const [historyData, setHistoryData] = useState([]);
+  const [news, setNews] = useState([]);
+  const [sentiment, setSentiment] = useState(null);
+  const [loading, setLoading] = useState({
+    history: false,
+    news: false,
+    sentiment: false
+  });
+
+  // --- Persistence Effects ---
+  useEffect(() => {
+    localStorage.setItem('finverse_charts', JSON.stringify(charts));
+    localStorage.setItem('finverse_balance', paperBalance.toString());
+    localStorage.setItem('finverse_trades', JSON.stringify(paperTrades));
+    localStorage.setItem('finverse_portfolio', JSON.stringify(paperPortfolio));
+  }, [charts, paperBalance, paperTrades, paperPortfolio]);
+
+  // --- Data Fetching ---
+  const fetchData = useCallback(async (instrument) => {
+    if (!instrument) return;
+    const { symbol, name } = instrument;
+
+    setLoading({ history: true, news: true, sentiment: true });
+    
+    try {
+      const historyResp = await fetch(`/api/history/${encodeURIComponent(symbol)}?interval=1day`);
+      if (historyResp.ok) {
+        const data = await historyResp.json();
+        const formatted = (data.candles || []).map(c => ({
+          x: new Date(c[0]),
+          o: c[1], h: c[2], l: c[3], c: c[4],
+          t: new Date(c[0]), y: c[4]
+        }));
+        setHistoryData(formatted);
       }
+    } catch (e) { console.error("History fetch error:", e); }
+    setLoading(prev => ({ ...prev, history: false }));
 
-      setBalance(prev => prev - cost);
-
-      setPortfolio(prev => {
-        const existing = prev[trade.symbol] || { quantity: 0, avgPrice: 0 };
-        const totalQuantity = existing.quantity + trade.quantity;
-        const totalCost = (existing.quantity * existing.avgPrice) + cost;
-
-        return {
-          ...prev,
-          [trade.symbol]: {
-            quantity: totalQuantity,
-            avgPrice: totalCost / totalQuantity
-          }
-        };
-      });
-    } else if (trade.type === 'sell') {
-      const holding = portfolio[trade.symbol];
-      if (!holding || holding.quantity < trade.quantity) {
-        alert("Insufficient shares to sell!");
-        return;
+    let fetchedNews = [];
+    try {
+      const newsResp = await fetch(`/api/ai/get_market_news?symbol=${encodeURIComponent(symbol)}&companyName=${encodeURIComponent(name || '')}`);
+      if (newsResp.ok) {
+        const data = await newsResp.json();
+        fetchedNews = data.articles || [];
+        setNews(fetchedNews);
       }
+    } catch (e) { console.error("News fetch error:", e); }
+    setLoading(prev => ({ ...prev, news: false }));
 
-      const revenue = trade.quantity * trade.price;
-      setBalance(prev => prev + revenue);
-
-      setPortfolio(prev => {
-        const newQuantity = holding.quantity - trade.quantity;
-        if (newQuantity === 0) {
-          const { [trade.symbol]: removed, ...rest } = prev;
-          return rest;
+    if (fetchedNews.length > 0) {
+      try {
+        const sentResp = await fetch('/api/ai/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol, news_articles: fetchedNews })
+        });
+        if (sentResp.ok) {
+          const data = await sentResp.json();
+          setSentiment(data.analysis);
         }
-        return {
-          ...prev,
-          [trade.symbol]: {
-            ...holding,
-            quantity: newQuantity
-          }
-        };
-      });
+      } catch (e) { console.error("Sentiment analysis error:", e); }
+    } else {
+        setSentiment("No recent news found for sentiment analysis.");
     }
-  };
+    setLoading(prev => ({ ...prev, sentiment: false }));
+  }, []);
 
-  const openPaperTrading = (symbol, price) => {
-    setSelectedSymbolForTrade({ symbol, price });
-    setIsPaperTradingOpen(true);
+  useEffect(() => {
+    fetchData(selectedInstrument);
+  }, [selectedInstrument, fetchData]);
+
+  // --- Workspace Handlers ---
+  const handleAddSymbol = (inst) => {
+    const exists = charts.find(c => c.instrument_key === inst.instrument_key);
+    if (!exists) {
+      const newChart = { ...inst, symbol: inst.tradingsymbol, visible: true };
+      setCharts([...charts, newChart]);
+      setActiveChartId(inst.instrument_key);
+    } else {
+      setActiveChartId(inst.instrument_key);
+    }
+    setIsModalOpen(prev => ({ ...prev, search: false }));
   };
 
   const handleRemoveChart = (id) => {
-    setCharts(prev => prev.filter(c => c.id !== id));
+    const filtered = charts.filter(c => c.instrument_key !== id);
+    setCharts(filtered);
+    if (activeChartId === id) {
+      setActiveChartId(filtered[0]?.instrument_key);
+    }
   };
 
-  const handleChartTypeChange = (id, newType) => {
-    setCharts(prev =>
-      prev.map(c => (c.id === id ? { ...c, type: newType } : c))
-    );
+  const toggleChartVisibility = (id) => {
+    setCharts(charts.map(c => c.instrument_key === id ? { ...c, visible: !c.visible } : c));
   };
 
-  const handleReorderCharts = (fromIndex, toIndex) => {
-    setCharts(prev => {
-      const newCharts = [...prev];
-      const [movedChart] = newCharts.splice(fromIndex, 1);
-      newCharts.splice(toIndex, 0, movedChart);
-      return newCharts;
-    });
+  // --- Paper Trading Handlers ---
+  const handlePaperTrade = (trade) => {
+    const totalCost = trade.quantity * trade.price;
+    
+    if (trade.type === 'BUY') {
+      if (paperBalance < totalCost) return;
+      setPaperBalance(prev => prev - totalCost);
+      
+      setPaperPortfolio(prev => {
+        const existing = prev[trade.symbol] || { quantity: 0, avgPrice: 0 };
+        const newQty = existing.quantity + trade.quantity;
+        const newAvg = ((existing.quantity * existing.avgPrice) + totalCost) / newQty;
+        return { ...prev, [trade.symbol]: { ...trade, quantity: newQty, avgPrice: newAvg } };
+      });
+    } else {
+      const existing = paperPortfolio[trade.symbol];
+      if (!existing || existing.quantity < trade.quantity) return;
+      
+      setPaperBalance(prev => prev + totalCost);
+      setPaperPortfolio(prev => {
+        const newQty = existing.quantity - trade.quantity;
+        if (newQty <= 0) {
+          const { [trade.symbol]: _, ...rest } = prev;
+          return rest;
+        }
+        return { ...prev, [trade.symbol]: { ...existing, quantity: newQty } };
+      });
+    }
+    
+    setPaperTrades(prev => [...prev, trade]);
   };
 
-  const handleToggleVisibility = (id) => {
-    setCharts(prev =>
-      prev.map(c => (c.id === id ? { ...c, hidden: !c.hidden } : c))
-    );
-  };
-
-  // Filter visible charts for display
-  const visibleCharts = charts.filter(c => !c.hidden);
-
-  // Dynamic grid layout based on number of visible charts
-  const getGridClass = () => {
-    const count = visibleCharts.length;
-    if (count === 0) return 'grid grid-cols-1';
-    if (count === 1) return 'grid grid-cols-1 max-w-5xl mx-auto';
-    if (count === 2) return 'grid grid-cols-1 lg:grid-cols-2 gap-5';
-    if (count <= 4) return 'grid grid-cols-1 lg:grid-cols-2 gap-5';
-    if (count <= 6) return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5';
-    return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5';
+  const handleResetPaper = () => {
+    setPaperBalance(1000000);
+    setPaperTrades([]);
+    setPaperPortfolio({});
   };
 
   return (
-    <>
-      {/* Animated Canvas Background */}
+    <div className="min-h-screen bg-[#0f172a] text-gray-100 p-4 lg:p-8 trading-scrollbar relative overflow-hidden">
       <CanvasBackground />
 
-      {/* Main Dashboard Content */}
-      <div style={{ padding: 20, position: 'relative', zIndex: 1 }} className={`transition-all duration-300 ${isCartOpen ? 'mr-80 lg:mr-96' : ''}`}>
-        <div className="container flex-1">
-        {/* Enhanced Header with Dashboard Canvas Feel */}
-        <header className="header relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-600/10 via-purple-600/10 to-pink-600/10 animate-pulse" style={{ animationDuration: '3s' }} />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="brand">
-              <img src={logoSrc} className="logo" alt="Finverse" />
-              <div>
-                <div className="title flex items-center gap-2">
-                  <LayoutDashboard className="w-5 h-5 text-indigo-400" />
-                  Finverse Dashboard
-                </div>
-                <div className="subtitle">AI-powered trading companion</div>
-              </div>
+      {/* Top Bar: Navigation & Tools */}
+      <div className="max-w-7xl mx-auto mb-8 flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+        <div className="flex items-center gap-6">
+          <div>
+            <h1 className="text-3xl font-extrabold text-white tracking-tight flex items-center gap-3">
+              <Activity className="text-blue-500 w-8 h-8" />
+              Finverse Workstation
+            </h1>
+            <div className="flex items-center gap-2 mt-2">
+              <button 
+                onClick={() => setActiveView('market')}
+                className={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-xl transition-all border ${activeView === 'market' ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'text-slate-500 border-white/5 hover:text-white hover:bg-white/5'}`}
+              >
+                Market Analysis
+              </button>
+              <button 
+                onClick={() => setActiveView('portfolio')}
+                className={`text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-xl transition-all border ${activeView === 'portfolio' ? 'bg-blue-600 text-white border-blue-500 shadow-lg shadow-blue-500/20' : 'text-slate-500 border-white/5 hover:text-white hover:bg-white/5'}`}
+              >
+                Upstox Portfolio
+              </button>
             </div>
+          </div>
+
+          <div className="h-12 w-px bg-white/5 mx-2 hidden md:block"></div>
+
+          {/* Workstation Quick Actions */}
+          <div className="flex items-center gap-3">
+             <button 
+               onClick={() => setIsModalOpen(prev => ({ ...prev, trading: true }))}
+               className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-blue-600/20 hover:border-blue-500/30 border border-transparent transition-all group"
+               title="Paper Trade"
+             >
+                <TrendingUp size={20} className="group-hover:scale-110 transition-transform" />
+             </button>
+             <button 
+               onClick={() => setIsModalOpen(prev => ({ ...prev, expense: true }))}
+               className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-green-600/20 hover:border-green-500/30 border border-transparent transition-all group"
+               title="Portfolio Analytics"
+             >
+                <Briefcase size={20} className="group-hover:scale-110 transition-transform" />
+             </button>
+             <button 
+               onClick={() => setIsModalOpen(prev => ({ ...prev, cart: true }))}
+               className="p-3 bg-white/5 rounded-2xl text-slate-400 hover:text-white hover:bg-indigo-600/20 hover:border-indigo-500/30 border border-transparent transition-all group"
+               title="Workstation Sidebar"
+             >
+                <ShoppingCart size={20} className="group-hover:scale-110 transition-transform" />
+             </button>
+          </div>
+        </div>
+        
+        <div className="flex flex-col md:flex-row items-center gap-6">
+          <FundsWidget />
+          <button 
+            onClick={() => setIsModalOpen(prev => ({ ...prev, search: true }))}
+            className="w-full md:w-80 group flex items-center justify-between p-4 bg-slate-900/60 rounded-2xl border border-white/5 hover:border-blue-500/30 transition-all text-slate-500 hover:text-slate-300"
+          >
             <div className="flex items-center gap-4">
-              <div className="hidden sm:block text-xs text-gray-400">
-                Mode: <strong className="text-green-400">Live (WebSocket)</strong>
-              </div>
-              <button
-                onClick={() => setIsCartOpen(!isCartOpen)}
-                className="px-3 py-2 rounded-lg bg-indigo-600/20 border border-indigo-500/30
-                         hover:bg-indigo-600/30 transition-all duration-200 text-sm font-medium
-                         text-white flex items-center gap-2"
-              >
-                <LayoutDashboard className="w-4 h-4" />
-                <span className="hidden sm:inline">Chart Cart</span>
-                {charts.length > 0 && (
-                  <span className="bg-indigo-500 text-white text-xs rounded-full px-2 py-0.5">
-                    {charts.length}
-                  </span>
-                )}
-              </button>
+              <Search size={20} className="group-hover:text-blue-400 transition-colors" />
+              <span className="text-sm font-medium">Search Command (Ctrl+K)</span>
             </div>
-          </div>
-          <div className="small">Mode: <strong style={{ color: "#10b981" }}>Live (WebSocket)</strong></div>
-        </header>
-
-        <main style={{ marginTop: 18 }}>
-
-          {/* Enhanced Control Panel */}
-          <div className="panel relative overflow-visible" style={{
-            marginBottom: 32,
-            padding: '28px 32px',
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '16px',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            background: 'linear-gradient(135deg, rgba(79, 70, 229, 0.05) 0%, rgba(99, 102, 241, 0.02) 100%)',
-            minHeight: '100px',
-            transition: 'all 0.3s ease'
-          }}>
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500" />
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <button
-                className="btn-add-symbol"
-                onClick={() => setIsAddSymbolOpen(true)}
-              >
-                <Plus size={20} />
-                Add Symbol
-              </button>
-
-              <button
-                className="btn-paper-trading"
-                onClick={() => setIsPaperTradingOpen(true)}
-              >
-                <ShoppingCart size={20} />
-                Paper Trade
-              </button>
-
-              <button
-                className="btn-expense-manager"
-                onClick={() => setIsExpenseManagerOpen(true)}
-              >
-                <Wallet size={20} />
-                Portfolio
-              </button>
-            </div>
-
-            <button
-              className="btn-primary"
-              style={{ padding: '14px 24px', flexShrink: 0, fontSize: '15px', fontWeight: 600 }}
-              onClick={() => setIsNewsOpen(true)}
-            >
-              AI News Feed
-            </button>
-          </div>
-
-          {/* Canvas Grid for Charts */}
-          <div className={getGridClass()}>
-            {visibleCharts.map(chartConfig => (
-              <div
-                key={chartConfig.id}
-                className="transform transition-all duration-300 hover:scale-[1.02] hover:z-10"
-              >
-                <ChartWidget
-                  chartConfig={chartConfig}
-                  onRemove={handleRemoveChart}
-                  onTypeChange={handleChartTypeChange}
-                />
-              </div>
-            ))}
-          </div>
-
-          {visibleCharts.length === 0 && (
-            <div className="panel-empty relative overflow-hidden" style={{textAlign: 'center', padding: '60px 40px'}}>
-              <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5" />
-              <div className="relative z-10">
-                <LayoutDashboard className="w-16 h-16 mx-auto mb-4 text-gray-600" />
-                <p className="text-gray-400 text-lg mb-2">Your dashboard canvas is empty</p>
-                <p className="text-gray-500 text-sm">Add a symbol to start building your dashboard</p>
-              </div>
-            </div>
-          )}
-
-          {isDevMode && (
-            <aside className="panel" style={{marginTop: '20px'}}> 
-              <h3 style={{ marginTop: 0 }}>Dev Status (Chart Config)</h3>
-              <pre className="pre">{JSON.stringify(charts, null, 2)}</pre>
-            </aside>
-          )}
-        </main>
+            <span className="text-[10px] font-mono font-bold px-2 py-1 bg-white/5 rounded-lg border border-white/5">⌘ K</span>
+          </button>
+        </div>
       </div>
 
-      {/* --- UPDATED: Pass the entire charts list --- */}
-      <SlidingNewsPanel
-        isOpen={isNewsOpen}
-        onClose={() => setIsNewsOpen(false)}
-        charts={charts}
-      />
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto relative z-10">
+        {activeView === 'market' ? (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in">
+            {/* Left/Main Column: Chart & Summary */}
+            <div className="lg:col-span-8 space-y-8">
+              {/* Chart Section */}
+              <div className="panel-card !p-0 overflow-hidden group border-white/5 shadow-2xl">
+                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-blue-600/20 p-2.5 rounded-2xl text-blue-400">
+                      <BarChart3 size={24} />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+                        {selectedInstrument?.symbol || 'Select Instrument'}
+                        <span className="text-[10px] px-2 py-1 rounded-lg bg-white/5 text-slate-500 font-mono italic">
+                          {selectedInstrument?.exchange || 'NSE'}
+                        </span>
+                      </h2>
+                      <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest italic">Live Market Workspace</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 bg-slate-900/40 p-1.5 rounded-2xl border border-white/5">
+                    <button className="px-4 py-2 text-[10px] font-bold rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 transition-all">LINE</button>
+                    <button className="px-4 py-2 text-[10px] font-bold rounded-xl text-slate-600 hover:text-white transition-all uppercase tracking-widest">CANDLE</button>
+                  </div>
+                </div>
+                
+                <div className="p-4 h-[500px]">
+                  {loading.history ? (
+                    <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
+                        <div className="w-12 h-12 border-4 border-blue-500/20 border-t-blue-500 rounded-full animate-spin"></div>
+                        <p className="text-slate-500 text-sm font-medium">Synchronizing workspace...</p>
+                    </div>
+                  ) : selectedInstrument ? (
+                    <PriceChart initialData={historyData} chartType="line" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center text-slate-500 space-y-4">
+                       <LayoutTemplate size={48} className="opacity-10" />
+                       <p className="text-sm font-medium">Add a symbol from the search or sidebar to view charts</p>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-      {/* Chart Cart Component */}
-      <ChartCart
-        charts={charts}
-        onRemove={handleRemoveChart}
-        onReorder={handleReorderCharts}
-        onTypeChange={handleChartTypeChange}
-        onToggleVisibility={handleToggleVisibility}
-        isOpen={isCartOpen}
-        onToggle={() => setIsCartOpen(!isCartOpen)}
-      />
+              {/* AI Sentiment Summary */}
+              <div className="panel-card bg-gradient-to-br from-[#1e293b]/80 to-[#0f172a]/80 border-blue-500/20 relative overflow-hidden group shadow-2xl">
+                <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-600/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="bg-purple-600/20 p-2.5 rounded-2xl text-purple-400">
+                    <BrainCircuit size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-white tracking-tight uppercase tracking-widest text-[10px] text-slate-500">AI Sentiment Engine</h2>
+                    <h3 className="text-lg font-bold text-white">Gemini Market Analysis</h3>
+                  </div>
+                </div>
+                <SentimentAnalysis analysisText={sentiment} loading={loading.sentiment} />
+              </div>
+            </div>
 
-      <button
-        className="chat-float-btn"
-        onClick={() => setIsChatOpen(true)}
-        title="Open AI Chat"
-      >
-        <MessageSquare size={24} />
-      </button>
-
-      <ChatPanel
-        isOpen={isChatOpen}
-        onClose={() => setIsChatOpen(false)}
-      />
-
-      {/* Add Symbol Modal */}
-      <AddSymbolModal
-        isOpen={isAddSymbolOpen}
-        onClose={() => setIsAddSymbolOpen(false)}
-        onSymbolSelect={handleSymbolSelect}
-      />
-
-      {/* Paper Trading Modal */}
-      <PaperTrading
-        isOpen={isPaperTradingOpen}
-        onClose={() => setIsPaperTradingOpen(false)}
-        symbol={selectedSymbolForTrade?.symbol || ""}
-        currentPrice={selectedSymbolForTrade?.price || 0}
-        onTrade={handleTrade}
-      />
-
-      {/* Expense Manager Modal */}
-      <ExpenseManager
-        isOpen={isExpenseManagerOpen}
-        onClose={() => setIsExpenseManagerOpen(false)}
-        trades={trades}
-        portfolio={portfolio}
-        balance={balance}
-      />
+            {/* Right Sidebar: News Feed */}
+            <div className="lg:col-span-4 space-y-8">
+              <div className="panel-card h-full flex flex-col bg-[#0f172a]/40 border-white/5 shadow-2xl">
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="bg-green-600/20 p-2.5 rounded-2xl text-green-400">
+                    <Newspaper size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Market Pulse</h2>
+                    <h3 className="text-lg font-bold text-white tracking-tight italic">Global Intelligence</h3>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto trading-scrollbar pr-2 max-h-[850px]">
+                  <NewsPanel news={news} loading={loading.news} />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="animate-in">
+            <PortfolioSection />
+          </div>
+        )}
       </div>
-    </>
+
+      {/* Feature Modals */}
+      <AddSymbolModal 
+        isOpen={isModalOpen.search} 
+        onClose={() => setIsModalOpen(prev => ({ ...prev, search: false }))} 
+        onAdd={handleAddSymbol} 
+      />
+      
+      <PaperTrading 
+        isOpen={isModalOpen.trading}
+        onClose={() => setIsModalOpen(prev => ({ ...prev, trading: false }))}
+        instrument={selectedInstrument}
+        balance={paperBalance}
+        onTrade={handlePaperTrade}
+      />
+
+      <ExpenseManager 
+        isOpen={isModalOpen.expense}
+        onClose={() => setIsModalOpen(prev => ({ ...prev, expense: false }))}
+        trades={paperTrades}
+        portfolio={paperPortfolio}
+        balance={paperBalance}
+        onReset={handleResetPaper}
+      />
+
+      {isModalOpen.cart && (
+        <ChartCart 
+          carts={charts} 
+          activeId={activeChartId}
+          onRemove={handleRemoveChart} 
+          onToggleVisibility={toggleChartVisibility}
+          onSelect={(id) => { setActiveChartId(id); setIsModalOpen(prev => ({ ...prev, cart: false })); }}
+          onClose={() => setIsModalOpen(prev => ({ ...prev, cart: false }))} 
+        />
+      )}
+
+      {/* Floating AI Chat Assistant */}
+      <div className="fixed bottom-8 right-8 z-50">
+        <ChatPanel 
+          watchedInstruments={charts.map(c => c.symbol)} 
+          recentNews={{ [selectedInstrument?.symbol]: news }} 
+        />
+      </div>
+    </div>
   );
-}
+};
+
+const LayoutTemplate = ({ size, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <rect width="18" height="18" x="3" y="3" rx="2" />
+    <path d="M7 3v18" />
+    <path d="M3 14h18" />
+  </svg>
+);
+
+export default Dashboard;
 

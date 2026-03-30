@@ -86,8 +86,7 @@ app = FastAPI(
 @app.on_event("startup")
 async def startup_event():
     print("Application startup...")
-    # Run update once on startup
-    scheduler.add_job(run_instrument_update, 'date', run_date=datetime.now())
+    # scheduler.add_job(run_instrument_update, 'date', run_date=datetime.now())
 
 
 # --- Pydantic Models for AI ---
@@ -371,6 +370,19 @@ async def handle_auth_callback(code: str):
     except Exception as e:
         print(f"Error during auth: {e}")
         raise HTTPException(status_code=500, detail="An unexpected error occurred")
+
+@app.get("/api/auth/logout")
+async def logout():
+    """Clears the authentication cookie and redirects to login."""
+    response = RedirectResponse(url=f"{FRONTEND_URL}/")
+    response.delete_cookie(
+        key="upstox_access_token",
+        domain="127.0.0.1",
+        httponly=True,
+        samesite="lax"
+    )
+    return response
+
 
 # --- Data Endpoints ---
 
@@ -1168,6 +1180,48 @@ async def get_chat_history(session_id: str):
         "message_count": len(history),
         "messages": history
     }
+
+# --- NEW: Portfolio & Trading Endpoints ---
+
+@app.get("/api/portfolio/holdings")
+async def get_holdings(request: Request):
+    """Fetches user holdings from Upstox."""
+    from src.upstox_helper import fetch_holdings
+    try:
+        data = fetch_holdings(request)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/portfolio/positions")
+async def get_positions(request: Request):
+    """Fetches user open positions from Upstox."""
+    from src.upstox_helper import fetch_positions
+    try:
+        data = fetch_positions(request)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/portfolio/orders")
+async def get_orders(request: Request):
+    """Fetches user order book from Upstox."""
+    from src.upstox_helper import fetch_order_book
+    try:
+        data = fetch_order_book(request)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/user/funds")
+async def get_user_funds(request: Request):
+    """Fetches user fund margin details from Upstox."""
+    from src.upstox_helper import fetch_user_funds
+    try:
+        data = fetch_user_funds(request)
+        return {"status": "success", "data": data}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- WebSocket Endpoint ---
 

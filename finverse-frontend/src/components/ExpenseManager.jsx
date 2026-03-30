@@ -1,185 +1,122 @@
-// src/components/ExpenseManager.jsx
 import React, { useState } from 'react';
-import { Wallet, TrendingUp, TrendingDown, DollarSign, PieChart, ArrowUpRight, ArrowDownRight, X } from 'lucide-react';
+import { Wallet, TrendingUp, TrendingDown, DollarSign, X, ArrowUpRight, ArrowDownRight, History, Briefcase, Activity } from 'lucide-react';
 
-export default function ExpenseManager({ isOpen, onClose, trades, portfolio, balance }) {
-  const [view, setView] = useState('overview'); // 'overview', 'trades', 'portfolio'
+export default function ExpenseManager({ isOpen, onClose, trades, portfolio, balance, onReset }) {
+  const [activeTab, setActiveTab] = useState('OVERVIEW');
 
-  // Calculate total P&L
-  const totalPnL = trades.reduce((sum, trade) => {
-    if (trade.type === 'sell') {
-      return sum + (trade.quantity * trade.price);
-    } else {
-      return sum - (trade.quantity * trade.price);
-    }
-  }, 0);
-
-  const totalInvested = trades
-    .filter(t => t.type === 'buy')
-    .reduce((sum, trade) => sum + (trade.quantity * trade.price), 0);
-
-  const totalRealized = trades
-    .filter(t => t.type === 'sell')
-    .reduce((sum, trade) => sum + (trade.quantity * trade.price), 0);
-
-  // Calculate portfolio value
-  const portfolioValue = Object.values(portfolio).reduce((sum, holding) => {
-    return sum + (holding.quantity * holding.avgPrice);
-  }, 0);
+  const totalInvested = Object.values(portfolio).reduce((sum, h) => sum + (h.quantity * h.avgPrice), 0);
+  const currentPortfolioValue = Object.values(portfolio).reduce((sum, h) => sum + (h.quantity * (h.lastPrice || h.avgPrice)), 0);
+  const totalPnL = currentPortfolioValue - totalInvested;
+  const pnlPercent = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0;
 
   if (!isOpen) return null;
 
+  const tabs = ['OVERVIEW', 'TRADE LOG', 'HOLDINGS'];
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="expense-manager-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="flex items-center gap-3">
-            <Wallet className="text-green-400" size={24} />
-            <h2 className="text-xl font-bold text-white">Portfolio & Expense Manager</h2>
+      <div className="expense-manager-modal glass-panel !bg-slate-950/90 !max-w-4xl" onClick={e => e.stopPropagation()}>
+        <div className="modal-header border-none p-8">
+          <div className="flex items-center gap-4">
+             <div className="p-3 bg-blue-500/10 rounded-2xl text-blue-400">
+                <Briefcase size={24} />
+             </div>
+             <div>
+                <h2 className="text-2xl font-bold text-white tracking-tight uppercase tracking-widest text-xs font-bold text-slate-500">Portfolio Analytics</h2>
+                <h3 className="text-xl font-bold text-white font-mono tracking-tighter italic">Virtual Account Management</h3>
+             </div>
           </div>
-          <button onClick={onClose} className="modal-close-btn">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-4">
+             <button 
+               onClick={() => { if(window.confirm('Reset virtual portfolio?')) onReset(); }}
+               className="px-4 py-2 rounded-xl bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-all uppercase tracking-widest border border-red-500/20"
+             >
+               Reset Data
+             </button>
+             <button onClick={onClose} className="modal-close-btn"><X size={20} /></button>
+          </div>
         </div>
 
-        {/* View Tabs */}
-        <div className="view-tabs">
-          <button
-            className={`tab-btn ${view === 'overview' ? 'active' : ''}`}
-            onClick={() => setView('overview')}
-          >
-            <PieChart size={18} />
-            Overview
-          </button>
-          <button
-            className={`tab-btn ${view === 'trades' ? 'active' : ''}`}
-            onClick={() => setView('trades')}
-          >
-            <DollarSign size={18} />
-            Trade History
-          </button>
-          <button
-            className={`tab-btn ${view === 'portfolio' ? 'active' : ''}`}
-            onClick={() => setView('portfolio')}
-          >
-            <TrendingUp size={18} />
-            Portfolio
-          </button>
+        {/* Tab Navigation */}
+        <div className="flex gap-4 px-8 mb-8 border-b border-white/5">
+          {tabs.map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`px-4 py-4 text-xs font-bold uppercase tracking-widest transition-all relative ${
+                activeTab === tab ? 'text-blue-400' : 'text-slate-500 hover:text-white'
+              }`}
+            >
+              {tab}
+              {activeTab === tab && <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 shadow-lg shadow-blue-500/50"></div>}
+            </button>
+          ))}
         </div>
 
-        <div className="expense-content">
-          {/* Overview */}
-          {view === 'overview' && (
-            <div className="overview-section">
-              <div className="stat-cards">
+        <div className="p-8 pt-0 overflow-y-auto max-h-[70vh] trading-scrollbar">
+          {activeTab === 'OVERVIEW' && (
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4">
+              <div className="grid grid-cols-3 gap-6">
                 <div className="stat-card">
-                  <div className="stat-icon wallet">
-                    <Wallet size={24} />
-                  </div>
-                  <div className="stat-info">
-                    <div className="stat-label">Available Balance</div>
-                    <div className="stat-value">₹{balance.toFixed(2)}</div>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-2">Available Balance</span>
+                  <div className="text-3xl font-mono font-bold text-white tracking-tighter">
+                    ₹{balance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
-
-                <div className="stat-card">
-                  <div className="stat-icon invested">
-                    <ArrowDownRight size={24} />
+                <div className="stat-card border-blue-500/10">
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-2">Current P&L</span>
+                  <div className={`text-3xl font-mono font-bold tracking-tighter flex items-center gap-2 ${totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    {totalPnL >= 0 ? <ArrowUpRight size={24} /> : <ArrowDownRight size={24} />}
+                    ₹{Math.abs(totalPnL).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
-                  <div className="stat-info">
-                    <div className="stat-label">Total Invested</div>
-                    <div className="stat-value">₹{totalInvested.toFixed(2)}</div>
-                  </div>
+                  <span className={`text-[10px] font-bold ${totalPnL >= 0 ? 'text-green-400/50' : 'text-red-400/50'} uppercase tracking-widest`}>
+                    ({pnlPercent.toFixed(2)}% overall yield)
+                  </span>
                 </div>
-
                 <div className="stat-card">
-                  <div className="stat-icon portfolio">
-                    <PieChart size={24} />
-                  </div>
-                  <div className="stat-info">
-                    <div className="stat-label">Portfolio Value</div>
-                    <div className="stat-value">₹{portfolioValue.toFixed(2)}</div>
-                  </div>
-                </div>
-
-                <div className="stat-card">
-                  <div className={`stat-icon ${totalPnL >= 0 ? 'profit' : 'loss'}`}>
-                    {totalPnL >= 0 ? <TrendingUp size={24} /> : <TrendingDown size={24} />}
-                  </div>
-                  <div className="stat-info">
-                    <div className="stat-label">Total P&L</div>
-                    <div className={`stat-value ${totalPnL >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {totalPnL >= 0 ? '+' : ''}₹{totalPnL.toFixed(2)}
-                    </div>
+                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest block mb-2">Total Invested</span>
+                  <div className="text-3xl font-mono font-bold text-slate-300 tracking-tighter">
+                    ₹{totalInvested.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
               </div>
 
-              <div className="summary-card">
-                <h3 className="summary-title">Trading Summary</h3>
-                <div className="summary-grid">
-                  <div className="summary-item">
-                    <span className="summary-label">Total Trades:</span>
-                    <span className="summary-value">{trades.length}</span>
-                  </div>
-                  <div className="summary-item">
-                    <span className="summary-label">Buy Orders:</span>
-                    <span className="summary-value text-green-400">
-                      {trades.filter(t => t.type === 'buy').length}
-                    </span>
-                  </div>
-                  <div className="summary-item">
-                    <span className="summary-label">Sell Orders:</span>
-                    <span className="summary-value text-red-400">
-                      {trades.filter(t => t.type === 'sell').length}
-                    </span>
-                  </div>
-                  <div className="summary-item">
-                    <span className="summary-label">Holdings:</span>
-                    <span className="summary-value">{Object.keys(portfolio).length}</span>
-                  </div>
-                </div>
+              {/* Performance Visualization Placeholder */}
+              <div className="p-8 bg-white/[0.02] border border-white/5 rounded-3xl text-center space-y-4">
+                 <div className="flex justify-center"><PieChart size={48} className="text-slate-700 opacity-50" /></div>
+                 <p className="text-slate-500 text-sm font-medium">Visualizing instrument-wise distribution and sector allocation...</p>
               </div>
             </div>
           )}
 
-          {/* Trade History */}
-          {view === 'trades' && (
-            <div className="trades-section">
+          {activeTab === 'TRADE LOG' && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
               {trades.length === 0 ? (
-                <div className="empty-state">
-                  <DollarSign size={48} className="text-gray-600" />
-                  <p className="text-gray-400">No trades yet</p>
-                  <p className="text-sm text-gray-500">Start trading to see your history here</p>
+                <div className="text-center p-20 text-slate-500 bg-white/[0.01] rounded-3xl border border-dashed border-white/5">
+                  <History size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>No transactions recorded yet.</p>
                 </div>
               ) : (
-                <div className="trades-list">
-                  {[...trades].reverse().map((trade) => (
-                    <div key={trade.id} className="trade-item">
-                      <div className="trade-left">
-                        <div className={`trade-type-badge ${trade.type}`}>
-                          {trade.type === 'buy' ? (
-                            <TrendingUp size={14} />
-                          ) : (
-                            <TrendingDown size={14} />
-                          )}
-                          {trade.type.toUpperCase()}
-                        </div>
-                        <div className="trade-details">
-                          <div className="trade-symbol">{trade.symbol}</div>
-                          <div className="trade-meta">
-                            {trade.quantity} shares @ ₹{trade.price.toFixed(2)}
+                <div className="space-y-4">
+                  {trades.slice().reverse().map((trade, idx) => (
+                    <div key={idx} className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl flex items-center justify-between hover:border-white/10 transition-all">
+                       <div className="flex items-center gap-4">
+                          <div className={`p-2 rounded-xl text-xs font-bold ${trade.type === 'BUY' ? 'bg-blue-500/20 text-blue-400' : 'bg-orange-500/20 text-orange-400'}`}>
+                            {trade.type}
                           </div>
-                        </div>
-                      </div>
-                      <div className="trade-right">
-                        <div className={`trade-amount ${trade.type === 'buy' ? 'text-red-400' : 'text-green-400'}`}>
-                          {trade.type === 'buy' ? '-' : '+'}₹{(trade.quantity * trade.price).toFixed(2)}
-                        </div>
-                        <div className="trade-date">
-                          {new Date(trade.timestamp).toLocaleString()}
-                        </div>
-                      </div>
+                          <div>
+                             <div className="font-bold text-white text-base">{trade.symbol}</div>
+                             <div className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">{new Date(trade.timestamp).toLocaleString()}</div>
+                          </div>
+                       </div>
+                       <div className="text-right">
+                          <div className="text-sm font-mono font-bold text-white tracking-tighter">
+                            {trade.quantity} @ ₹{trade.price.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+                            VALUE: ₹{(trade.quantity * trade.price).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </div>
+                       </div>
                     </div>
                   ))}
                 </div>
@@ -187,37 +124,39 @@ export default function ExpenseManager({ isOpen, onClose, trades, portfolio, bal
             </div>
           )}
 
-          {/* Portfolio */}
-          {view === 'portfolio' && (
-            <div className="portfolio-section">
+          {activeTab === 'HOLDINGS' && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4">
               {Object.keys(portfolio).length === 0 ? (
-                <div className="empty-state">
-                  <PieChart size={48} className="text-gray-600" />
-                  <p className="text-gray-400">No holdings yet</p>
-                  <p className="text-sm text-gray-500">Buy stocks to build your portfolio</p>
+                <div className="text-center p-20 text-slate-500 bg-white/[0.01] rounded-3xl border border-dashed border-white/5">
+                  <Activity size={48} className="mx-auto mb-4 opacity-20" />
+                  <p>Portfolio is currently empty.</p>
                 </div>
               ) : (
-                <div className="portfolio-list">
-                  {Object.entries(portfolio).map(([symbol, holding]) => (
-                    <div key={symbol} className="portfolio-item">
-                      <div className="portfolio-header">
-                        <div className="portfolio-symbol">{symbol}</div>
-                        <div className="portfolio-quantity">{holding.quantity} shares</div>
-                      </div>
-                      <div className="portfolio-details">
-                        <div className="portfolio-detail">
-                          <span className="detail-label">Avg Price:</span>
-                          <span className="detail-value">₹{holding.avgPrice.toFixed(2)}</span>
-                        </div>
-                        <div className="portfolio-detail">
-                          <span className="detail-label">Total Value:</span>
-                          <span className="detail-value">
-                            ₹{(holding.quantity * holding.avgPrice).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-4">
+                   {Object.entries(portfolio).map(([symbol, h]) => {
+                     const pl = (h.lastPrice || h.avgPrice) - h.avgPrice;
+                     const plTotal = pl * h.quantity;
+                     
+                     return (
+                       <div key={symbol} className="p-6 bg-white/[0.02] border border-white/5 rounded-3xl flex items-center justify-between group">
+                          <div>
+                             <div className="flex items-center gap-3 mb-1">
+                                <span className="text-lg font-bold text-white group-hover:text-blue-400 transition-all font-mono tracking-tighter leading-none">{symbol}</span>
+                                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">{h.exchange || 'NSE'}</span>
+                             </div>
+                             <div className="text-sm text-slate-500 font-medium">QTY: {h.quantity} | Avg: ₹{h.avgPrice.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</div>
+                          </div>
+                          <div className="text-right">
+                             <div className={`text-lg font-mono font-bold tracking-tighter leading-none mb-1 ${plTotal >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                ₹{plTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                             </div>
+                             <div className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">
+                               LTP: ₹{(h.lastPrice || h.avgPrice).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                             </div>
+                          </div>
+                       </div>
+                     );
+                   })}
                 </div>
               )}
             </div>
@@ -227,3 +166,10 @@ export default function ExpenseManager({ isOpen, onClose, trades, portfolio, bal
     </div>
   );
 }
+
+const PieChart = ({ size, className }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M21.21 15.89A10 10 0 1 1 8 2.83" />
+    <path d="M22 12A10 10 0 0 0 12 2v10z" />
+  </svg>
+);

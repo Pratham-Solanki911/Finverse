@@ -218,3 +218,56 @@ def fetch_historical_candles(request: Request, instrument_key: str, interval: st
         import traceback
         traceback.print_exc()
         raise
+
+# --- NEW: Portfolio & Trading Helpers ---
+
+def fetch_user_funds(request: Request):
+    """Fetches the user's fund and margin details."""
+    api_version = "2.0"
+    api_client = _get_api_client(request)
+    api_instance = upstox_client.UserApi(api_client)
+    try:
+        api_response = api_instance.get_user_fund_margin(api_version)
+        return api_response.data.to_dict() if hasattr(api_response.data, "to_dict") else api_response.data
+    except ApiException as e:
+        print(f"Error in fetch_user_funds: {e}")
+        raise HTTPException(status_code=e.status, detail=str(e))
+
+def fetch_holdings(request: Request):
+    """Fetches the user's portfolio holdings."""
+    api_version = "2.0"
+    api_client = _get_api_client(request)
+    api_instance = upstox_client.PortfolioApi(api_client)
+    try:
+        api_response = api_instance.get_holdings(api_version)
+        if not api_response.data: return []
+        return [h.to_dict() if hasattr(h, "to_dict") else h for h in api_response.data]
+    except ApiException as e:
+        print(f"Error in fetch_holdings: {e}")
+        raise HTTPException(status_code=e.status, detail=str(e))
+
+def fetch_positions(request: Request):
+    """Fetches the user's open positions."""
+    api_version = "2.0"
+    api_client = _get_api_client(request)
+    api_instance = upstox_client.PortfolioApi(api_client)
+    try:
+        api_response = api_instance.get_positions(api_version)
+        if not api_response.data: return []
+        return [p.to_dict() if hasattr(p, "to_dict") else p for p in api_response.data]
+    except ApiException as e:
+        print(f"Error in fetch_positions: {e}")
+        raise HTTPException(status_code=e.status, detail=str(e))
+
+def fetch_order_book(request: Request):
+    """Fetches the user's order book."""
+    api_version = "2.0"
+    api_client = _get_api_client(request)
+    api_instance = upstox_client.OrderApi(api_client)
+    try:
+        api_response = api_instance.get_order_book(api_version)
+        if not api_response.data: return []
+        return [o.to_dict() if hasattr(o, "to_dict") else o for o in api_response.data]
+    except ApiException as e:
+        print(f"Error in fetch_order_book: {e}")
+        raise HTTPException(status_code=e.status, detail=str(e))
